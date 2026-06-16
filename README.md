@@ -4,7 +4,7 @@ La performance énergétique d'un logement reste un critère important pour sa m
 sur le marché de l'immobilier.
 
 # Problématique
-Prédire l'étiquette DPE (A, B, C, D, E, F, G) d'un logement à partir de certaines caractéristiques de celui-ci.
+Prédire la catégorie (passoire energétique is_passoire=1 ou non is_passoire=0) d'un logement à partir de certaines caractéristiques de celui-ci.
 
 # Data source
 Open data ADEME https://data.ademe.fr/datasets/dpe02neuf
