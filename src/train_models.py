@@ -13,6 +13,7 @@ Lancement :
 """
 from __future__ import annotations
 
+from src.evaluation import log_shap_summary
 import argparse
 import logging
 import warnings
@@ -186,44 +187,6 @@ def optimize_model(
         roc_auc=roc_auc_score(y_test, proba),
         preds=preds,
     )
-
-
-# ── SHAP summary (inline, sans module evaluation externe) ─────────────────────
-
-def log_shap_summary(pipeline: Pipeline, x_test, model_name: str) -> None:
-    """Logger un SHAP summary plot comme artefact MLflow."""
-    try:
-        import shap
-
-        # Récupérer le preprocessor et le classifieur depuis le pipeline
-        preprocessor = pipeline.named_steps["preprocessor"]
-        classifier = pipeline.named_steps["clf"]
-
-        x_transformed = preprocessor.transform(x_test)
-
-        # TreeExplainer pour RF/XGB/LGBM, sinon fallback LinearExplainer
-        try:
-            explainer = shap.TreeExplainer(classifier)
-            shap_values = explainer.shap_values(x_transformed)
-        except Exception:
-            explainer = shap.LinearExplainer(classifier, x_transformed)
-            shap_values = explainer.shap_values(x_transformed)
-
-        # Pour les classifieurs binaires, shap_values peut être une liste [class0, class1]
-        if isinstance(shap_values, list):
-            shap_values = shap_values[1]
-
-        fig, ax = plt.subplots(figsize=(10, 6))
-        shap.summary_plot(shap_values, x_transformed, show=False)
-        ax = plt.gca()
-        ax.set_title(f"SHAP Summary — {model_name}")
-        mlflow.log_figure(plt.gcf(), "shap_summary.png")
-        plt.close("all")
-        logger.info("SHAP summary loggé pour %s", model_name)
-
-    except Exception as e:
-        logger.warning("SHAP summary ignoré pour %s : %s", model_name, e)
-
 
 # ── S7-4 : logging MLflow ─────────────────────────────────────────────────────
 

@@ -10,7 +10,6 @@ dependencies = [
     "pandas>=2.2.0",
     "numpy>=1.26.0",
     "pyarrow>=18.0.0",
-
     # ML
     "scikit-learn>=1.5.0",
     "xgboost>=2.0.0",
@@ -19,15 +18,12 @@ dependencies = [
     "shap>=0.47.0",
     "numba>=0.59.0",
     "llvmlite>=0.42.0",
-
     # Tracking & Registry
     "mlflow>=2.14.0",
-
     # API
     "fastapi>=0.111.0",
     "uvicorn>=0.30.0",
     "pydantic>=2.7.0",
-
     # Frontend
     "streamlit>=1.35.0",
     "plotly>=5.22.0",
