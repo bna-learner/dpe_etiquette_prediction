@@ -1,37 +1,9 @@
-"""Construction du pre-processing."""
-from __future__ import annotations
-import pandas as pd
-
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
-from src.config import CATEGORICAL_FEATURES, NUMERICAL_FEATURES
-
-
-def na_handle() -> pd.DataFrame:
-    data["nombre_niveau_logement"] = data["nombre_niveau_logement"].fillna(
-    data["nombre_niveau_logement"].median()
-    )
-    data = data.dropna()
-    return data
-
-def build_preprocessor() -> ColumnTransformer:
-    return ColumnTransformer(
-        transformers=[
-            ("num", StandardScaler(), NUMERICAL_FEATURES),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL_FEATURES),
-        ]
-    )
-
-
-
-
-"""Construction du pre-processing."""
 from __future__ import annotations
 import pandas as pd
 
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, OrdinalEncoder
+from src.config import NUMERICAL_FEATURES
 
 # On sépare les catégories pour appliquer le bon traitement
 # (À adapter ou à importer depuis ton src.config)

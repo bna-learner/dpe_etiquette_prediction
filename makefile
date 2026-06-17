@@ -5,9 +5,8 @@
 # Usage     : make help
 # -----------------------------------------------------------------------------
 
-.PHONY: help install train train-optuna train-models api frontend \
-        docker-build docker-up docker-down test test-cov lint \
-        export-data clean
+.PHONY: help install install-dev train train-optuna train-models api frontend \
+        mlflow-ui docker-build docker-up docker-down docker-logs test test-cov clean clean-models
 
 CYAN  := \033[36m
 RESET := \033[0m
@@ -27,13 +26,13 @@ help: ## Affiche cette aide
 
 # ── Environnement ─────────────────────────────────────────────────────────────
 
-install: ## Installe les dépendances via uv
-	uv sync --all-extras
-	@echo "Environnement prêt."
+install: ## Installe uniquement les dépendances de production
+	uv sync --no-dev
+	@echo "Environnement de production prêt."
 
-install-dev: ## Installe les dépendances + dev (pytest, httpx...)
-	uv sync --all-extras
-	@echo "Environnement dev prêt."
+install-dev: ## Installe toutes les dépendances (y compris le groupe dev)
+	uv sync
+	@echo "Environnement de développement prêt."
 
 # ── Données ───────────────────────────────────────────────────────────────────
 
@@ -44,18 +43,18 @@ export-data: ## Exporte un échantillon Silver → data/dpe_silver_sample.csv
 # ── Entraînement ──────────────────────────────────────────────────────────────
 
 train: ## Entraînement baseline avec MLflow (TP S5)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m mlproject.train
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m src.train
 
 train-optuna: ## Optimisation Optuna + Model Registry (TP S6)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m mlproject.train_optuna
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m src.train_optuna
 
 train-models: ## Comparaison modèles GridSearchCV + SHAP (TP S7)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m mlproject.train_models
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m src.train_models
 
 # ── API ───────────────────────────────────────────────────────────────────────
 
 api: ## Démarre l'API FastAPI en local (TP S12)
-	PYTHONPATH=$(PYTHONPATH) uv run uvicorn mlproject.api:app --reload --port 8000
+	PYTHONPATH=$(PYTHONPATH) uv run uvicorn src.api:app --reload --port 8000
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +93,7 @@ test: ## Lance tous les tests unitaires
 
 test-cov: ## Lance les tests avec rapport de couverture
 	PYTHONPATH=$(PYTHONPATH) $(PYTEST) tests/ -v \
-		--cov=mlproject \
+		--cov=src \
 		--cov-report=term-missing \
 		--cov-report=html:htmlcov
 
