@@ -13,7 +13,6 @@ from src.config import (
     EXPERIMENT_NAME,
     MLFLOW_TRACKING_URI,
     REGISTERED_MODEL,
-    TARGET,
 )
 from src.data import load_data, split
 from src.feature import build_preprocessor, na_handle

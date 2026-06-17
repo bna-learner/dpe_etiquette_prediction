@@ -13,10 +13,11 @@ Transformations appliquées :
   - Export CSV dans data/dpe_silver_sample.csv
 """
 
+from src.config import (
+    NUMERICAL_FEATURES, CATEGORICAL_FEATURES, TARGET
+)
 import pandas as pd
-import numpy as np
 from pathlib import Path
-import sys
 import os
 from dotenv import load_dotenv
 
@@ -27,10 +28,7 @@ ROOT_DIR   = Path(__file__).resolve().parent.parent
 SILVER_PATH = Path(os.getenv("DATA_SOURCE"))
 OUTPUT_CSV  = ROOT_DIR / "data" / "dpe_silver_data.csv"
 
-sys.path.insert(0, str(ROOT_DIR))
-from src.config import (
-    NUMERICAL_FEATURES, CATEGORICAL_FEATURES, TARGET
-)
+# sys.path.insert(0, str(ROOT_DIR))
 
 SAMPLE_SIZE = 200_000 
 RANDOM_STATE = 42
