@@ -11,9 +11,9 @@ Lancement :
     PYTHONPATH=. uv run python -m src.train_models --cv 3 --scoring recall
     PYTHONPATH=. uv run python -m src.train_models --no-mlflow
 """
+
 from __future__ import annotations
 
-from src.evaluation import log_shap_summary
 import argparse
 import logging
 import warnings
@@ -25,8 +25,12 @@ import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
 import numpy as np
+from lightgbm import LGBMClassifier
 from mlflow.models import infer_signature
 from sklearn.base import ClassifierMixin
+
+# ── S7-1 : imports ────────────────────────────────────────────────────────────
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     classification_report,
@@ -34,22 +38,19 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
 )
-from sklearn.pipeline import Pipeline
-
-# ── S7-1 : imports ────────────────────────────────────────────────────────────
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
 
 from src.config import (
     EXPERIMENT_NAME,
     MLFLOW_TRACKING_URI,
     MODELS_DIR,
-    REGISTERED_MODEL,
     RANDOM_STATE,
+    REGISTERED_MODEL,
 )
 from src.data import load_data, split
+from src.evaluation import log_shap_summary
 from src.feature import build_preprocessor, na_handle
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -64,9 +65,11 @@ warnings.filterwarnings(
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ModelSpec:
     """Spécification d'un modèle à optimiser."""
+
     name: str
     estimator: ClassifierMixin
     param_grid: dict
@@ -75,6 +78,7 @@ class ModelSpec:
 @dataclass
 class FitResult:
     """Résultat d'optimisation d'un modèle."""
+
     name: str
     best_estimator: Pipeline
     best_params: dict
@@ -85,6 +89,7 @@ class FitResult:
 
 
 # ── S7-2 : définition des modèles et grilles ──────────────────────────────────
+
 
 def build_model_specs() -> list[ModelSpec]:
     """Construire la liste des modèles à optimiser.
@@ -114,7 +119,7 @@ def build_model_specs() -> list[ModelSpec]:
                 random_state=RANDOM_STATE,
                 eval_metric="logloss",
                 n_jobs=-1,
-                scale_pos_weight=358,   # ~36 522 / 102 — compense le déséquilibre
+                scale_pos_weight=358,  # ~36 522 / 102 — compense le déséquilibre
             ),
             param_grid={
                 "clf__n_estimators": [100, 200],
@@ -140,6 +145,7 @@ def build_model_specs() -> list[ModelSpec]:
 
 # ── Assemblage pipeline ────────────────────────────────────────────────────────
 
+
 def build_pipeline(estimator: ClassifierMixin) -> Pipeline:
     """Assembler le preprocessing et un classifieur dans un pipeline."""
     return Pipeline(
@@ -151,6 +157,7 @@ def build_pipeline(estimator: ClassifierMixin) -> Pipeline:
 
 
 # ── S7-3 : optimisation par GridSearchCV ──────────────────────────────────────
+
 
 def optimize_model(
     spec: ModelSpec,
@@ -188,7 +195,9 @@ def optimize_model(
         preds=preds,
     )
 
+
 # ── S7-4 : logging MLflow ─────────────────────────────────────────────────────
+
 
 def log_run_to_mlflow(
     result: FitResult,
@@ -206,11 +215,13 @@ def log_run_to_mlflow(
 
         # S7-4a : hyperparamètres et métriques
         mlflow.log_params(result.best_params)
-        mlflow.log_metrics({
-            f"cv_{scoring}": result.cv_score,
-            "f1": result.f1,
-            "roc_auc": result.roc_auc,
-        })
+        mlflow.log_metrics(
+            {
+                f"cv_{scoring}": result.cv_score,
+                "f1": result.f1,
+                "roc_auc": result.roc_auc,
+            }
+        )
 
         # Matrice de confusion
         cm = confusion_matrix(y_test, result.preds)
@@ -252,6 +263,7 @@ def log_run_to_mlflow(
 
 # ── S7-5 bonus : documentation Model Registry ─────────────────────────────────
 
+
 def describe_registered_version(
     name: str,
     version: int,
@@ -286,6 +298,7 @@ def describe_registered_version(
 
 # ── Orchestration principale ───────────────────────────────────────────────────
 
+
 def train_all(
     cv: int = 5,
     scoring: str = "roc_auc",
@@ -315,10 +328,12 @@ def train_all(
             mlflow.log_param("cv", cv)
             mlflow.log_param("scoring", scoring)
             mlflow.set_tag("best_model", best.name)
-            mlflow.log_metrics({
-                "best_roc_auc": best.roc_auc,
-                "best_f1": best.f1,
-            })
+            mlflow.log_metrics(
+                {
+                    "best_roc_auc": best.roc_auc,
+                    "best_f1": best.f1,
+                }
+            )
             for result in results:
                 register_as = REGISTERED_MODEL if result is best else None
                 log_run_to_mlflow(result, x_test, y_test, cv, scoring, register_as=register_as)

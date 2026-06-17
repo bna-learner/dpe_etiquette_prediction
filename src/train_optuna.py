@@ -11,9 +11,9 @@ Lancement :
     PYTHONPATH=. uv run python -m src.train_optuna --n-trials 50 --cv 3
     PYTHONPATH=. uv run python -m src.train_optuna --no-mlflow
 """
+
 from __future__ import annotations
 
-from src.evaluation import log_shap_summary
 import argparse
 import logging
 from collections.abc import Callable
@@ -25,35 +25,36 @@ import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
 import numpy as np
+
+# S6-1 : imports Optuna
+import optuna
+import optuna.samplers
+from lightgbm import LGBMClassifier
 from mlflow.models import infer_signature
+from optuna.samplers import TPESampler
 from sklearn.base import ClassifierMixin
+
+# S6-2 : imports modèles
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     classification_report,
     confusion_matrix,
     roc_auc_score,
 )
-from sklearn.pipeline import Pipeline
-
-# S6-1 : imports Optuna
-import optuna
-import optuna.samplers
-from optuna.samplers import TPESampler
 from sklearn.model_selection import cross_val_score
-
-# S6-2 : imports modèles
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
 
 from src.config import (
     EXPERIMENT_NAME,
     MLFLOW_TRACKING_URI,
     MODELS_DIR,
-    REGISTERED_MODEL,
     RANDOM_STATE,
+    REGISTERED_MODEL,
 )
 from src.data import load_data, split
+from src.evaluation import log_shap_summary
 from src.feature import build_preprocessor, na_handle
 
 # Silencer les logs Optuna dans la console
@@ -65,9 +66,11 @@ logger = logging.getLogger(__name__)
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ModelSpec:
     """Spécification d'une famille de modèles à optimiser avec Optuna."""
+
     name: str
     suggest_params: Callable
     build_estimator: Callable[[dict], ClassifierMixin]
@@ -76,6 +79,7 @@ class ModelSpec:
 @dataclass
 class FamilyResult:
     """Résultat d'optimisation d'une famille de modèles."""
+
     spec: ModelSpec
     study: Any
     best_pipeline: Pipeline
@@ -84,6 +88,7 @@ class FamilyResult:
 
 
 # ── S6-2 : définition des espaces de recherche ────────────────────────────────
+
 
 def build_model_specs() -> list[ModelSpec]:
     """Construire la liste des familles de modèles à optimiser."""
@@ -96,12 +101,15 @@ def build_model_specs() -> list[ModelSpec]:
         }
 
     def rf_build(params: dict) -> ClassifierMixin:
-        return cast(ClassifierMixin, RandomForestClassifier(
-            **params,
-            random_state=RANDOM_STATE,
-            class_weight="balanced",
-            n_jobs=-1,
-        ))
+        return cast(
+            ClassifierMixin,
+            RandomForestClassifier(
+                **params,
+                random_state=RANDOM_STATE,
+                class_weight="balanced",
+                n_jobs=-1,
+            ),
+        )
 
     def xgb_suggest(trial) -> dict:
         return {
@@ -111,13 +119,16 @@ def build_model_specs() -> list[ModelSpec]:
         }
 
     def xgb_build(params: dict) -> ClassifierMixin:
-        return cast(ClassifierMixin, XGBClassifier(
-            **params,
-            random_state=RANDOM_STATE,
-            eval_metric="logloss",
-            scale_pos_weight=358,  # ~36 522 / 102
-            n_jobs=-1,
-        ))
+        return cast(
+            ClassifierMixin,
+            XGBClassifier(
+                **params,
+                random_state=RANDOM_STATE,
+                eval_metric="logloss",
+                scale_pos_weight=358,  # ~36 522 / 102
+                n_jobs=-1,
+            ),
+        )
 
     def lgbm_suggest(trial) -> dict:
         return {
@@ -128,30 +139,37 @@ def build_model_specs() -> list[ModelSpec]:
         }
 
     def lgbm_build(params: dict) -> ClassifierMixin:
-        return cast(ClassifierMixin, LGBMClassifier(
-            **params,
-            random_state=RANDOM_STATE,
-            verbose=-1,
-            is_unbalance=True,
-        ))
+        return cast(
+            ClassifierMixin,
+            LGBMClassifier(
+                **params,
+                random_state=RANDOM_STATE,
+                verbose=-1,
+                is_unbalance=True,
+            ),
+        )
 
     return [
         ModelSpec(name="random_forest", suggest_params=rf_suggest, build_estimator=rf_build),
-        ModelSpec(name="xgboost",       suggest_params=xgb_suggest, build_estimator=xgb_build),
-        ModelSpec(name="lightgbm",      suggest_params=lgbm_suggest, build_estimator=lgbm_build),
+        ModelSpec(name="xgboost", suggest_params=xgb_suggest, build_estimator=xgb_build),
+        ModelSpec(name="lightgbm", suggest_params=lgbm_suggest, build_estimator=lgbm_build),
     ]
 
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
+
 def build_pipeline(estimator: ClassifierMixin) -> Pipeline:
-    return Pipeline(steps=[
-        ("preprocessor", build_preprocessor()),
-        ("clf", estimator),
-    ])
+    return Pipeline(
+        steps=[
+            ("preprocessor", build_preprocessor()),
+            ("clf", estimator),
+        ]
+    )
 
 
 # ── S6-3 : fonction objectif ──────────────────────────────────────────────────
+
 
 def objective(trial, spec: ModelSpec, x_train, y_train, cv: int) -> float:
     """Fonction objectif Optuna : ROC AUC moyen en validation croisée."""
@@ -163,6 +181,7 @@ def objective(trial, spec: ModelSpec, x_train, y_train, cv: int) -> float:
 
 
 # ── S6-4 & S6-5 : création et lancement de l'étude ───────────────────────────
+
 
 def run_study(spec: ModelSpec, x_train, y_train, n_trials: int, cv: int):
     """Lancer l'étude Optuna pour une famille de modèles."""
@@ -178,6 +197,7 @@ def run_study(spec: ModelSpec, x_train, y_train, n_trials: int, cv: int):
 
 
 # ── Optimisation d'une famille ────────────────────────────────────────────────
+
 
 def optimize_family(
     spec: ModelSpec,
@@ -199,7 +219,10 @@ def optimize_family(
 
     logger.info(
         "%s : cv_roc_auc=%.4f | test_roc_auc=%.4f | params=%s",
-        spec.name, study.best_value, test_roc_auc, study.best_params,
+        spec.name,
+        study.best_value,
+        test_roc_auc,
+        study.best_params,
     )
     return FamilyResult(
         spec=spec,
@@ -209,7 +232,9 @@ def optimize_family(
         preds=preds,
     )
 
+
 # ── S6-6 : logging MLflow ─────────────────────────────────────────────────────
+
 
 def log_family_to_mlflow(
     result: FamilyResult,
@@ -227,9 +252,7 @@ def log_family_to_mlflow(
 
         # S6-6 : un run imbriqué par trial
         for trial in result.study.trials:
-            with mlflow.start_run(
-                run_name=f"{result.spec.name}_trial_{trial.number}", nested=True
-            ):
+            with mlflow.start_run(run_name=f"{result.spec.name}_trial_{trial.number}", nested=True):
                 mlflow.log_params(trial.params)
                 if trial.value is not None:
                     mlflow.log_metric("cv_roc_auc", trial.value)
@@ -279,6 +302,7 @@ def log_family_to_mlflow(
 
 # ── S6-7 bonus : documentation Model Registry ─────────────────────────────────
 
+
 def describe_registered_version(
     name: str,
     version: int,
@@ -313,6 +337,7 @@ def describe_registered_version(
 
 # ── Orchestration principale ───────────────────────────────────────────────────
 
+
 def optimize(n_trials: int = 30, cv: int = 5, use_mlflow: bool = True) -> list[FamilyResult]:
     df = load_data()
     df_clean = na_handle(df)
@@ -330,19 +355,19 @@ def optimize(n_trials: int = 30, cv: int = 5, use_mlflow: bool = True) -> list[F
     results.sort(key=lambda r: r.test_roc_auc, reverse=True)
 
     best = results[0]
-    logger.info(
-        "Meilleure famille : %s (test_roc_auc=%.4f)", best.spec.name, best.test_roc_auc
-    )
+    logger.info("Meilleure famille : %s (test_roc_auc=%.4f)", best.spec.name, best.test_roc_auc)
 
     if use_mlflow:
         with mlflow.start_run(run_name="optuna-compare"):
             mlflow.log_param("n_trials", n_trials)
             mlflow.log_param("cv", cv)
             mlflow.set_tag("best_model", best.spec.name)
-            mlflow.log_metrics({
-                "best_test_roc_auc": best.test_roc_auc,
-                "best_cv_roc_auc": best.study.best_value,
-            })
+            mlflow.log_metrics(
+                {
+                    "best_test_roc_auc": best.test_roc_auc,
+                    "best_cv_roc_auc": best.study.best_value,
+                }
+            )
             for result in results:
                 register_as = REGISTERED_MODEL if result is best else None
                 log_family_to_mlflow(result, x_test, y_test, n_trials, cv, register_as=register_as)
@@ -356,7 +381,10 @@ def optimize(n_trials: int = 30, cv: int = 5, use_mlflow: bool = True) -> list[F
     for i, r in enumerate(results, 1):
         logger.info(
             "%d. %s | test_roc_auc: %.4f | cv_roc_auc: %.4f",
-            i, r.spec.name, r.test_roc_auc, r.study.best_value,
+            i,
+            r.spec.name,
+            r.test_roc_auc,
+            r.study.best_value,
         )
 
     return results

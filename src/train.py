@@ -1,13 +1,20 @@
 """Script d'entraînement du modèle baseline (Régression Logistique) avec MLflow."""
+
 from __future__ import annotations
 
 import logging
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, f1_score, precision_score, recall_score, roc_auc_score
-from sklearn.pipeline import Pipeline
 
 import mlflow
 import mlflow.sklearn
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    classification_report,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.pipeline import Pipeline
 
 from src.config import (
     EXPERIMENT_NAME,
@@ -47,10 +54,7 @@ def main():
         # On utilise class_weight="balanced" car le recall est ta métrique prioritaire (TP S5)
         model = LogisticRegression(max_iter=2000, random_state=42, class_weight="balanced")
 
-        pipeline = Pipeline(steps=[
-            ("preprocessor", preprocessor),
-            ("classifier", model)
-        ])
+        pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", model)])
 
         logger.info("Entraînement de la Régression Logistique baseline...")
         pipeline.fit(X_train, y_train)
