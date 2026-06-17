@@ -219,3 +219,7 @@ __marimo__/
 
 #Notebook
 notebook/
+
+mlflow.db
+models/
+mlruns/
