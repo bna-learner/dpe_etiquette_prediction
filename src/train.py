@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-import joblib
 
+import joblib
 import mlflow
 import mlflow.sklearn
 from sklearn.linear_model import LogisticRegression
@@ -20,8 +20,8 @@ from sklearn.pipeline import Pipeline
 from src.config import (
     EXPERIMENT_NAME,
     MLFLOW_TRACKING_URI,
-    REGISTERED_MODEL,
     MODELS_DIR,
+    REGISTERED_MODEL,
 )
 from src.data import load_data, split
 from src.feature import build_preprocessor, na_handle
