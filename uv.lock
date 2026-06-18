@@ -746,6 +746,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "lightgbm" },
     { name = "llvmlite" },
     { name = "mlflow" },
@@ -768,7 +769,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "great-expectations" },
-    { name = "httpx" },
     { name = "ipykernel" },
     { name = "mypy" },
     { name = "pandas-stubs" },
@@ -780,6 +780,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.111.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "lightgbm", specifier = ">=4.0.0" },
     { name = "llvmlite", specifier = ">=0.42.0" },
     { name = "mlflow", specifier = ">=2.14.0" },
@@ -800,7 +801,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "great-expectations", specifier = ">=1.0.0" },
-    { name = "httpx", specifier = ">=0.27.0" },
     { name = "ipykernel", specifier = ">=7.0.0" },
     { name = "mypy", specifier = ">=1.16.0" },
     { name = "pandas-stubs", specifier = ">=2.2.0" },
