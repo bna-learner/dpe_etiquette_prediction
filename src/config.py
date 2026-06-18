@@ -10,6 +10,7 @@
 # =============================================================================
 
 from pathlib import Path
+import os
 
 # ── Chemins ───────────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -58,7 +59,7 @@ TEST_SIZE = 0.2
 RANDOM_STATE = 42
 
 # ── MLflow ────────────────────────────────────────────────────────────────────
-MLFLOW_TRACKING_URI = "sqlite:///mlflow.db"  # "mlruns" #"http://localhost:5000"
+MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 EXPERIMENT_NAME = "dpe-passoire-prediction"
 REGISTERED_MODEL = "dpe-passoire-classifier"
 

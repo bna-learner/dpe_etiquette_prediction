@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import joblib
 
 import mlflow
 import mlflow.sklearn
@@ -20,6 +21,7 @@ from src.config import (
     EXPERIMENT_NAME,
     MLFLOW_TRACKING_URI,
     REGISTERED_MODEL,
+    MODELS_DIR,
 )
 from src.data import load_data, split
 from src.feature import build_preprocessor, na_handle
@@ -88,6 +90,10 @@ def main():
             registered_model_name=REGISTERED_MODEL,
         )
         logger.info("Processus de tracking et d'entraînement terminé avec succès.")
+                # Sauvegarde locale pour l'API
+        MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        joblib.dump(pipeline, MODELS_DIR / "model.joblib")
+        logger.info(f"Modèle sauvegardé dans {MODELS_DIR / 'model.joblib'}")
 
 
 if __name__ == "__main__":

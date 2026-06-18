@@ -1,9 +1,5 @@
-# TP Séance 18 - Intégration continue (CI) avec GitHub Actions
-#
-# Placez ce fichier dans .github/workflows/ à la RACINE de votre dépôt.
 name: CI
 
-# S18-1 : déclenchement sur push, pull_request et lancement manuel
 on:
   push:
     branches: ["**"]
@@ -11,19 +7,14 @@ on:
     branches: ["**"]
   workflow_dispatch:
 
-# Annule un run en cours si on repousse sur la même ref (économise des minutes).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Permissions minimales par défaut.
 permissions:
   contents: read
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # 1. Qualité : lint (ruff) + types (mypy) + tests (pytest)
-  # ---------------------------------------------------------------------------
   quality:
     name: Qualité (lint + types + tests)
     runs-on: ubuntu-latest
@@ -37,32 +28,22 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
-      # S18-2 : installation projet + outils dev
       - name: Installation des dépendances (projet + dev)
         run: uv sync
 
-      # S18-3 : lint ruff — adapté au package src/
       - name: Lint (ruff)
         run: uv run ruff check src/
 
-      # S18-4 : vérification des types mypy
       - name: Types (mypy)
         run: uv run mypy src/
 
-      # S18-5 : suite de tests pytest
       - name: Tests (pytest)
         run: uv run pytest
 
-  # ---------------------------------------------------------------------------
-  # 2. Entraînement : entraîne la baseline et publie le modèle en artefact
-  # ---------------------------------------------------------------------------
   train:
     name: Entraînement (Continuous Training)
     runs-on: ubuntu-latest
-
-    # S18-6 : ce job ne s'exécute que si quality est vert
     needs: quality
-
     steps:
       - name: Checkout du dépôt
         uses: actions/checkout@v4
@@ -76,8 +57,6 @@ jobs:
       - name: Installation des dépendances
         run: uv sync
 
-      # S18-7 : préparation des données + entraînement baseline
-      # MLflow en mode fichier local (pas de serveur dans la CI)
       - name: Entraînement de la baseline
         env:
           MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
@@ -86,7 +65,6 @@ jobs:
           mkdir -p data models
           uv run python -m src.train
 
-      # S18-8 : publication du modèle en artefact téléchargeable
       - name: Publication du modèle en artefact
         uses: actions/upload-artifact@v4
         with:

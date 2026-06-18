@@ -1,15 +1,19 @@
-# Image du frontend Streamlit (fournie : support du TP docker-compose - Seance 14).
-# Build : docker build -f todo/docker/Dockerfile.frontend -t mlproject-frontend .
-# Run   : docker run --rm -p 8501:8501 -e API_URL=http://host.docker.internal:8000 mlproject-frontend
+# Image du frontend Streamlit
+# Build : docker build -f docker/Dockerfile.frontend -t dpe-frontend .
+# Run   : docker run --rm -p 8501:8501 -e API_URL=http://host.docker.internal:8000 dpe-frontend
 
 FROM python:3.13-slim
+
 ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 COPY pyproject.toml ./
+COPY README.md ./ 
 RUN pip install --no-cache-dir .
 
-COPY /home/bienvenu/Projets/Projets_data/dpe_etiquette_prediction/frontend/ ./frontend/
+COPY frontend/ ./frontend/
 
 EXPOSE 8501
+
 CMD ["streamlit", "run", "frontend/app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
