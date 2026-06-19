@@ -6,7 +6,11 @@ import os
 import httpx
 import streamlit as st
 
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
+# URL interne Docker (appels serveur → serveur)
+API_URL = os.environ.get("API_URL", "http://api:8000")
+# URL publique affichée dans le champ et utilisée pour les appels depuis le navigateur
+# Surcharger via API_URL_PUBLIC=http://88.96.51.180:8000 dans docker-compose
+API_URL_PUBLIC = os.environ.get("API_URL_PUBLIC", API_URL)
 
 
 def _get_model_info(api_url: str) -> dict | None:
@@ -35,10 +39,16 @@ def render() -> None:
     # ── Bandeau modèle ─────────────────────────────────────────────────────────
     col_url, col_info = st.columns([2, 3])
     with col_url:
-        api_url = st.text_input("URL de l'API", value=API_URL, label_visibility="collapsed",
-                                placeholder="http://localhost:8000")
+        # Afficher l'URL publique dans le champ (modifiable par l'utilisateur)
+        api_url = st.text_input(
+            "URL de l'API",
+            value=API_URL_PUBLIC,
+            label_visibility="collapsed",
+            placeholder="http://88.96.51.180:8000",
+        )
     with col_info:
-        info = _get_model_info(api_url)
+        # Les appels /info depuis le serveur Streamlit utilisent l'URL interne
+        info = _get_model_info(API_URL)
         if info:
             st.markdown(f"""
             <div style='background:#0d2137; color:white; border-radius:4px;
@@ -141,7 +151,8 @@ def render() -> None:
 
         with st.spinner("Analyse en cours…"):
             try:
-                response = httpx.post(f"{api_url}/predict", json=payload, timeout=10.0)
+                # Appel via l'URL interne Docker (fiable depuis le serveur Streamlit)
+                response = httpx.post(f"{API_URL}/predict", json=payload, timeout=10.0)
                 response.raise_for_status()
                 result = response.json()
             except httpx.HTTPError as exc:
@@ -192,7 +203,6 @@ def render() -> None:
         with res_col3:
             st.metric("Confiance", f"{max(probability, 1 - probability):.1%}")
 
-        # Barre de probabilité stylisée
         color = "#b52c2c" if probability > 0.5 else "#1a7a4a"
         st.markdown(f"""
         <div style='margin-top:1rem;'>
