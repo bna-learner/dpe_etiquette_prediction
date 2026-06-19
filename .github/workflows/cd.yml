@@ -101,8 +101,12 @@ jobs:
             echo "${{ secrets.GHCR_TOKEN }}" \
               | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
 
-            # Pull toutes les images distantes
-            docker compose pull
+            # Pull uniquement les images distantes (pas les images buildées localement)
+            docker compose pull mlflow postgres
+
+            # Build des images locales (api depuis GHCR déjà pullée, les autres en local)
+            docker compose build frontend airflow-webserver airflow-scheduler
+            docker compose --profile train build train
 
             # Démarrer MLflow en premier
             docker compose up -d mlflow
