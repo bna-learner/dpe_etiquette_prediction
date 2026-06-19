@@ -161,8 +161,8 @@ def task_check_quality(**context) -> None:
 # S17-4 : planifié tous les lundis à 3h
 with DAG(
     dag_id="model_retraining",
-    description="Baseline + comparaison RF/XGB/LGBM + porte qualité — tous les lundis à 3h",
-    schedule="0 3 * * 1",
+    description="Baseline + comparaison RF/XGB/LGBM + porte qualité — toutes les 30 minutes",
+    schedule="*/30 * * * *",
     start_date=datetime(2024, 1, 1),
     catchup=False,
     default_args=default_args,
