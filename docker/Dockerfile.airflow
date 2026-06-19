@@ -1,0 +1,28 @@
+# Image Airflow avec les dépendances du projet DPE
+# Build : docker build -f docker/Dockerfile.airflow -t dpe-airflow .
+
+FROM apache/airflow:2.9.1-python3.12
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
+# Copier les dépendances et installer
+COPY pyproject.toml ./
+COPY README.md ./
+RUN pip install --no-cache-dir apache-airflow==2.9.1 \
+    && pip install --no-cache-dir \
+        pandas \
+        scikit-learn \
+        xgboost \
+        lightgbm \
+        mlflow \
+        httpx \
+        joblib \
+        pyarrow
+
+# Copier le code source
+COPY src/ ./src/
+COPY data/ ./data/

@@ -12,15 +12,56 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write  # write pour pouvoir pousser le lint-fix automatique
 
 jobs:
-  quality:
-    name: Qualité (lint + types + tests)
+
+  # ── Job 1 : Lint auto-fix ──────────────────────────────────────────────────
+  lint-fix:
+    name: Lint auto-fix (ruff)
     runs-on: ubuntu-latest
+    # Uniquement sur les push directs (pas sur les PR d'autres forks)
+    if: github.event_name == 'push'
     steps:
       - name: Checkout du dépôt
         uses: actions/checkout@v4
+        with:
+          # token avec droit d'écriture pour pouvoir repousser les corrections
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Installation de uv (avec cache)
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Installation des dépendances
+        run: uv sync
+
+      - name: Ruff — fix automatique
+        run: uv run ruff check src/ --fix --exit-zero
+
+      - name: Commit & push des corrections (si besoin)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: ruff auto-fix [skip ci]"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+
+  # ── Job 2 : Qualité (lint strict + types + tests) ─────────────────────────
+  quality:
+    name: Qualité (lint + types + tests)
+    runs-on: ubuntu-latest
+    # Attend lint-fix si on est sur un push, sinon démarre directement
+    needs: [lint-fix]
+    if: always()
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+        with:
+          # récupère le commit après l'éventuel auto-fix
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Installation de uv (avec cache)
         uses: astral-sh/setup-uv@v8.2.0
@@ -31,7 +72,7 @@ jobs:
       - name: Installation des dépendances (projet + dev)
         run: uv sync
 
-      - name: Lint (ruff)
+      - name: Lint strict (ruff — aucune tolérance ici)
         run: uv run ruff check src/
 
       - name: Types (mypy)
@@ -40,6 +81,7 @@ jobs:
       - name: Tests (pytest)
         run: uv run pytest
 
+  # ── Job 3 : Entraînement ───────────────────────────────────────────────────
   train:
     name: Entraînement (Continuous Training)
     runs-on: ubuntu-latest
@@ -71,3 +113,52 @@ jobs:
           name: model
           path: models/model.joblib
           retention-days: 30
+
+      # Conserver aussi mlflow.db pour que evaluate puisse le lire
+      - name: Publication de mlflow.db en artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-db
+          path: mlflow.db
+          retention-days: 1
+
+  # ── Job 4 : Évaluation / porte qualité ────────────────────────────────────
+  evaluate:
+    name: Évaluation & porte qualité (MLflow)
+    runs-on: ubuntu-latest
+    needs: train
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de uv (avec cache)
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Installation des dépendances
+        run: uv sync
+
+      - name: Récupération du modèle
+        uses: actions/download-artifact@v4
+        with:
+          name: model
+          path: models/
+
+      - name: Récupération de mlflow.db
+        uses: actions/download-artifact@v4
+        with:
+          name: mlflow-db
+          path: .
+
+      - name: Évaluation du modèle (src.evaluate)
+        env:
+          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+          PYTHONPATH: "."
+        run: |
+          mkdir -p data
+          uv run python -m src.evaluate
+        # Le script lève SystemExit(1) si les seuils roc_auc / f1_score
+        # définis dans src/config.py ne sont pas atteints → le job échoue
+        # et bloque la CD automatiquement.

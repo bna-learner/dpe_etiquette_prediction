@@ -1,9 +1,13 @@
 name: CD
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches:
       - main
+  push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
@@ -16,9 +20,12 @@ permissions:
   contents: read
 
 jobs:
+
+  # ── Job 1 : Build & push de l'image API sur GHCR ──────────────────────────
   build-push:
     name: Build & push de l'image API (GHCR)
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     permissions:
       contents: read
       packages: write
@@ -57,3 +64,75 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ── Job 2 : Déploiement sur le VPS Oracle ─────────────────────────────────
+  deploy:
+    name: Déploiement sur le VPS Oracle
+    runs-on: ubuntu-latest
+    needs: build-push
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      # ── 2.1 : Copie des fichiers vers le VPS ──────────────────────────────
+      - name: Copie des fichiers via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: >
+            -avz --delete
+            --exclude='.git/'
+            --exclude='.venv/'
+            --exclude='__pycache__/'
+            --exclude='*.pyc'
+            --exclude='mlflow.db'
+            --exclude='models/*.joblib'
+            --exclude='data/'
+            --exclude='htmlcov/'
+          path: .
+          remote_path: ${{ secrets.VPS_DEPLOY_PATH }}
+          remote_host: ${{ secrets.VPS_HOST }}
+          remote_user: ${{ secrets.VPS_USER }}
+          remote_key: ${{ secrets.VPS_SSH_KEY }}
+
+      # ── 2.2 : SSH + docker compose up (même logique que make deploy-up) ───
+      - name: Déploiement via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.VPS_DEPLOY_PATH }}
+
+            # Authentification GHCR depuis le VPS
+            echo "${{ secrets.GHCR_TOKEN }}" \
+              | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
+
+            # Pull toutes les images distantes (API depuis GHCR, mlflow officielle)
+            docker compose pull
+
+            # Démarrer MLflow en premier
+            docker compose up -d mlflow
+            sleep 5
+
+            # Entraînement one-shot dans Docker
+            docker compose --profile train run --rm train
+
+            # Démarrer API + Frontend
+            docker compose up -d api frontend
+
+            # Airflow (init idempotent + démarrage)
+            docker compose run --rm airflow-init 2>/dev/null || true
+            docker compose up -d airflow-webserver airflow-scheduler
+
+            # Nettoyage
+            docker image prune -f
+
+            echo "✅ Déploiement terminé — $(date -u)"
+            echo ""
+            echo "MLflow   → http://${{ secrets.VPS_HOST }}:5000"
+            echo "API      → http://${{ secrets.VPS_HOST }}:8000/docs"
+            echo "Frontend → http://${{ secrets.VPS_HOST }}:8501"
+            echo "Airflow  → http://${{ secrets.VPS_HOST }}:8080"

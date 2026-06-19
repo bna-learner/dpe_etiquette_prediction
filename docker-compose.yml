@@ -4,7 +4,34 @@
 #   docker compose up -d mlflow
 #   docker compose --profile train run --rm train
 #   docker compose up -d api frontend
-#   -> API sur http://localhost:8000, frontend sur http://localhost:8501, MLflow sur http://localhost:5000
+#   docker compose run --rm airflow-init
+#   docker compose up -d airflow-webserver airflow-scheduler
+#   -> API sur http://localhost:8000, frontend sur http://localhost:8501
+#   -> MLflow sur http://localhost:5000, Airflow sur http://localhost:8080
+
+x-airflow-common: &airflow-common
+  image: dpe-airflow
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.airflow
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    PYTHONPATH: /opt/airflow
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./data:/opt/airflow/data
+    - ./src:/opt/airflow/src
+    - airflow_logs:/opt/airflow/logs
+    - models_data:/opt/airflow/models
+  depends_on:
+    postgres:
+      condition: service_healthy
 
 services:
   mlflow:
@@ -39,15 +66,12 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    # S14-1 : port 8000
     ports:
       - "8000:8000"
-    # S14-2 : volume models en lecture seule
     volumes:
       - models_data:/app/models:ro
     environment:
       PYTHONPATH: /app
-    # S14-3 : healthcheck sur GET /health
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
@@ -60,17 +84,51 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    # S14-4 : URL de l'API via nom de service Docker
     environment:
       API_URL: http://api:8000
-    # S14-5 : port 8501
     ports:
       - "8501:8501"
-    # S14-6 : attendre que l'API soit saine
     depends_on:
       api:
         condition: service_healthy
 
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    command: bash -c "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+
 volumes:
   mlflow_data:
   models_data:
+  postgres_data:
+  airflow_logs:
