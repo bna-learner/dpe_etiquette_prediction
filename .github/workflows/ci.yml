@@ -26,7 +26,6 @@ jobs:
       - name: Checkout du dépôt
         uses: actions/checkout@v4
         with:
-          # token avec droit d'écriture pour pouvoir repousser les corrections
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.head_ref || github.ref_name }}
 
@@ -53,14 +52,12 @@ jobs:
   quality:
     name: Qualité (lint + types + tests)
     runs-on: ubuntu-latest
-    # Attend lint-fix si on est sur un push, sinon démarre directement
     needs: [lint-fix]
     if: always()
     steps:
       - name: Checkout du dépôt
         uses: actions/checkout@v4
         with:
-          # récupère le commit après l'éventuel auto-fix
           ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Installation de uv (avec cache)
@@ -114,12 +111,18 @@ jobs:
           path: models/model.joblib
           retention-days: 30
 
-      # Conserver aussi mlflow.db pour que evaluate puisse le lire
       - name: Publication de mlflow.db en artefact
         uses: actions/upload-artifact@v4
         with:
           name: mlflow-db
           path: mlflow.db
+          retention-days: 1
+
+      - name: Publication des artefacts MLflow (mlruns/)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlruns
+          path: mlruns/
           retention-days: 1
 
   # ── Job 4 : Évaluation / porte qualité ────────────────────────────────────
@@ -151,6 +154,12 @@ jobs:
         with:
           name: mlflow-db
           path: .
+
+      - name: Récupération des artefacts MLflow
+        uses: actions/download-artifact@v4
+        with:
+          name: mlruns
+          path: mlruns/
 
       - name: Évaluation du modèle (src.evaluate)
         env:
