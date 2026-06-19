@@ -6,9 +6,9 @@ import os
 import httpx
 import streamlit as st
 
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
-MLFLOW_URL = os.environ.get("MLFLOW_URL", "http://localhost:5000")
-AIRFLOW_URL = os.environ.get("AIRFLOW_URL", "http://localhost:8080")
+API_URL = os.environ.get("API_URL", "http://api:8000")
+MLFLOW_URL = os.environ.get("MLFLOW_URL", "http://mlflow:5000")
+AIRFLOW_URL = os.environ.get("AIRFLOW_URL", "http://airflow-webserver:8080")
 
 
 def _fetch(url: str, timeout: float = 4.0) -> dict | list | None:

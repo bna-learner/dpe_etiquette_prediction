@@ -102,6 +102,10 @@ services:
       dockerfile: docker/Dockerfile.frontend
     environment:
       API_URL: http://api:8000
+      # ✅ FIX : URLs internes Docker pour que les health checks
+      # de metrics.py atteignent MLflow et Airflow depuis le container
+      MLFLOW_URL: http://mlflow:5000
+      AIRFLOW_URL: http://airflow-webserver:8080
     ports:
       - "8501:8501"
     depends_on:

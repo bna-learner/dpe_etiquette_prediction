@@ -8,7 +8,7 @@ from __future__ import annotations
 import streamlit as st
 
 st.set_page_config(
-    page_title="DPE Passoire — Louis Laurent",
+    page_title="DPE Passoire — Bienvenu NATCHIA",
     page_icon="🏠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -171,12 +171,30 @@ with st.sidebar:
     )
 
     st.markdown("""
-    <div style='position:absolute; bottom:2rem; left:0; right:0; padding:0 1.5rem;'>
-        <div style='font-size:0.7rem; color:#6b8099; letter-spacing:0.08em; margin-bottom:0.5rem;'>LIENS RAPIDES</div>
-        <a href='http://localhost:5000' target='_blank'>📈 MLflow</a><br><br>
-        <a href='http://localhost:8080' target='_blank'>🔄 Airflow</a><br><br>
-        <a href='http://localhost:8000/docs' target='_blank'>⚡ API Docs</a><br><br>
-        <a href='https://github.com/username/dpe-etiquette-prediction' target='_blank'>💻 GitHub</a>
+    <div style='margin-top:2rem; padding-top:1.2rem; border-top:1px solid #1e3a55;'>
+        <div style='font-size:0.7rem; color:#6b8099; letter-spacing:0.08em; margin-bottom:0.8rem;'>LIENS RAPIDES</div>
+        <div style='display:flex; flex-direction:column; gap:0.6rem;'>
+            <a href='http://88.96.51.180:5000' target='_blank'
+               style='display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.8rem;
+                      border-radius:4px; background:#163352; color:#e8c97a !important; text-decoration:none;'>
+                📈 <span>MLflow</span>
+            </a>
+            <a href='http://88.96.51.180:8080' target='_blank'
+               style='display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.8rem;
+                      border-radius:4px; background:#163352; color:#e8c97a !important; text-decoration:none;'>
+                🔄 <span>Airflow</span>
+            </a>
+            <a href='http://88.96.51.180:8000/docs' target='_blank'
+               style='display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.8rem;
+                      border-radius:4px; background:#163352; color:#e8c97a !important; text-decoration:none;'>
+                ⚡ <span>API Docs</span>
+            </a>
+            <a href='https://github.com/bna-learner/dpe_etiquette_prediction' target='_blank'
+               style='display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.8rem;
+                      border-radius:4px; background:#163352; color:#e8c97a !important; text-decoration:none;'>
+                💻 <span>GitHub</span>
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
