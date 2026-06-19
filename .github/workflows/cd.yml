@@ -79,23 +79,14 @@ jobs:
       - name: Copie des fichiers via rsync
         uses: burnett01/rsync-deployments@7.0.1
         with:
-          switches: >
-            -avz --delete
-            --exclude='.git/'
-            --exclude='.venv/'
-            --exclude='__pycache__/'
-            --exclude='*.pyc'
-            --exclude='mlflow.db'
-            --exclude='models/*.joblib'
-            --exclude='data/'
-            --exclude='htmlcov/'
+          switches: "-avz --delete --exclude='.git/' --exclude='.venv/' --exclude='__pycache__/' --exclude='*.pyc' --exclude='mlflow.db' --exclude='models/*.joblib' --exclude='data/' --exclude='htmlcov/'"
           path: .
           remote_path: ${{ secrets.VPS_DEPLOY_PATH }}
           remote_host: ${{ secrets.VPS_HOST }}
           remote_user: ${{ secrets.VPS_USER }}
           remote_key: ${{ secrets.VPS_SSH_KEY }}
 
-      # ── 2.2 : SSH + docker compose up (même logique que make deploy-up) ───
+      # ── 2.2 : SSH + docker compose up ─────────────────────────────────────
       - name: Déploiement via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -110,7 +101,7 @@ jobs:
             echo "${{ secrets.GHCR_TOKEN }}" \
               | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
 
-            # Pull toutes les images distantes (API depuis GHCR, mlflow officielle)
+            # Pull toutes les images distantes
             docker compose pull
 
             # Démarrer MLflow en premier
