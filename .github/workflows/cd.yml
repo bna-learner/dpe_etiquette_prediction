@@ -93,6 +93,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          # ✅ FIX 2 : timeout étendu pour laisser le temps au train de finir
+          command_timeout: 30m
           script: |
             set -e
             cd ${{ secrets.VPS_DEPLOY_PATH }}
@@ -104,15 +106,26 @@ jobs:
             # Pull uniquement les images distantes (pas les images buildées localement)
             docker compose pull mlflow postgres
 
-            # Build des images locales (api depuis GHCR déjà pullée, les autres en local)
+            # Build des images locales
             docker compose build frontend airflow-webserver airflow-scheduler
             docker compose --profile train build train
 
             # Démarrer MLflow en premier
             docker compose up -d mlflow
-            sleep 5
+
+            # ✅ FIX 2 : attendre que MLflow soit vraiment prêt via son
+            # endpoint /health au lieu d'un sleep 5 arbitraire (race condition)
+            echo "⏳ Attente MLflow (health check)..."
+            timeout 60 bash -c \
+              'until curl -sf http://localhost:5000/health > /dev/null; do
+                echo "  MLflow pas encore prêt, nouvelle tentative dans 3s..."
+                sleep 3
+              done'
+            echo "✅ MLflow opérationnel"
 
             # Entraînement one-shot dans Docker
+            # MLFLOW_TRACKING_URI=http://mlflow:5000 est déjà défini
+            # dans docker-compose.yml pour le service train
             docker compose --profile train run --rm train
 
             # Démarrer API + Frontend

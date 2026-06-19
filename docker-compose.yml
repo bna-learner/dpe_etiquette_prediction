@@ -32,6 +32,9 @@ x-airflow-common: &airflow-common
   depends_on:
     postgres:
       condition: service_healthy
+    # ✅ FIX 1 : Airflow attend aussi que MLflow soit sain
+    mlflow:
+      condition: service_healthy
 
 services:
   mlflow:
@@ -47,6 +50,14 @@ services:
       - "5000:5000"
     volumes:
       - mlflow_data:/mlflow
+    # ✅ FIX 1 : healthcheck sur MLflow — sans ça, train démarre avant que le
+    # serveur soit prêt → les runs MLflow échouent silencieusement
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   train:
     build:
@@ -55,8 +66,11 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       PYTHONPATH: /app
+    # ✅ FIX 1 : attend que MLflow soit vraiment opérationnel (service_healthy)
+    # au lieu d'un simple depends_on qui ne vérifie que le démarrage du container
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
     volumes:
       - models_data:/app/models
     profiles:
@@ -78,7 +92,8 @@ services:
       timeout: 5s
       retries: 10
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
 
   frontend:
     build:

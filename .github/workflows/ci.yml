@@ -98,7 +98,11 @@ jobs:
 
       - name: Entraînement de la baseline
         env:
-          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+          # ✅ FIX 3 : pointe vers le serveur MLflow du VPS au lieu d'un
+          # SQLite local éphémère — les runs remontent maintenant dans l'UI.
+          # Ajouter MLFLOW_TRACKING_URI = http://<IP_VPS>:5000 dans les
+          # secrets GitHub (Settings → Secrets → Actions).
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
           PYTHONPATH: "."
         run: |
           mkdir -p data models
@@ -110,20 +114,6 @@ jobs:
           name: model
           path: models/model.joblib
           retention-days: 30
-
-      - name: Publication de mlflow.db en artefact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlflow-db
-          path: mlflow.db
-          retention-days: 1
-
-      - name: Publication des artefacts MLflow (mlruns/)
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlruns
-          path: mlruns/
-          retention-days: 1
 
   # ── Job 4 : Évaluation / porte qualité ────────────────────────────────────
   evaluate:
@@ -149,21 +139,11 @@ jobs:
           name: model
           path: models/
 
-      - name: Récupération de mlflow.db
-        uses: actions/download-artifact@v4
-        with:
-          name: mlflow-db
-          path: .
-
-      - name: Récupération des artefacts MLflow
-        uses: actions/download-artifact@v4
-        with:
-          name: mlruns
-          path: mlruns/
-
       - name: Évaluation du modèle (src.evaluate)
         env:
-          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+          # ✅ FIX 3 : même URI que le job train — evaluate lit les runs
+          # enregistrés sur le vrai serveur MLflow, pas un SQLite reconstitué
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
           PYTHONPATH: "."
         run: |
           mkdir -p data
