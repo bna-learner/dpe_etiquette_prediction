@@ -125,7 +125,7 @@ def render() -> None:  # noqa: PLR0912
         <div class='card' style='text-align:center;'>
             <div style='font-size:3rem;'>👤</div>
             <div style='font-family: Playfair Display, serif; font-size:1.4rem;
-                        font-weight:700; color:#0d2137; margin-top:0.5rem;'>Louis Laurent</div>
+                        font-weight:700; color:#0d2137; margin-top:0.5rem;'> Bienvenu NATCHIA </div>
             <div style='color:#6b7c8d; font-size:0.85rem; margin-top:0.3rem;'>
                 Projet MLOps · Promotion 2025
             </div>
